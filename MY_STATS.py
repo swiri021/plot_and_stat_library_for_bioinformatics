@@ -1,5 +1,6 @@
 from scipy import stats
 import numpy as np
+import pandas as pd
 import math
 
 class MY_STATS:

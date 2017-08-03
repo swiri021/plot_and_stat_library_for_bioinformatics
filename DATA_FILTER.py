@@ -3,8 +3,10 @@ import pandas as pd
 import itertools
 from EXC_READ import EXC_READ
 import math
+ex = EXC_READ()
 
 class DATA_FILTER:
+
 
 	#### nan_filter(data, index, filter number)
 	#### filter number = 2 : less than 2 NaN passed
@@ -36,7 +38,7 @@ class DATA_FILTER:
 
 		return total_log_dat
 
-	def quantileNormalize(self, df_input):#### ###### it should be fixed
+	def quantileNormalize(self, df_input):
 		df = df_input.copy()
 		#compute rank
 		dic = {}
@@ -59,7 +61,7 @@ class DATA_FILTER:
 	#####ex) converted = fi.id_conversion(selected,'all_data/global_entrez_list0.tsv', converted_index_type = 'str', converted_id_type='float')
 	##### converted_index_type : string type, converted_id_type : float, conversion list file should be look like testID\tnewID\n and your data look like testID\tdata1\tdata2\n
 	def id_conversion(self, df, conv_file, original_id_loc=0, original_id_type='str',converted_id_loc=1, converted_id_type='str', converted_index_type='float'):
-		ex = EXC_READ()
+
 		#####tdata : converted id, tindex : original id
 		tdata, thead, tindex = ex.file_read(conv_file,tstatus="file", ind_loc=original_id_loc, index_type=converted_index_type, return_type=2)
 
@@ -154,6 +156,21 @@ class DATA_FILTER:
 			df_s1.reverse()
 
 			return df_s1
+
+	def dedup_peptide2protein(self, df):
+
+		df_temp_columns = df.columns.tolist()
+		df_arr = []
+		for x in df_temp_columns:
+			temp_df = df[x].dropna()
+			dedup_list = list(set(temp_df.index.tolist()))
+			temp_df_value = [max(temp_df.loc[y].tolist()) if type(temp_df.loc[y].tolist()) is list else float(temp_df.loc[y].tolist()) for y in dedup_list]
+
+			temp_df = pd.DataFrame(data=temp_df_value, index=dedup_list, columns=[x])
+			df_arr.append(temp_df)
+
+		res_df = pd.concat(df_arr, axis=1)
+		return res_df
 
 
 	def __init__(self):

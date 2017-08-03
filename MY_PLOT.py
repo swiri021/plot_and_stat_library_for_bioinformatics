@@ -5,7 +5,7 @@ mlab.use('Agg')
 from EXC_READ import EXC_READ
 from DATA_FILTER import DATA_FILTER
 import matplotlib.pyplot as plt
-import seaborn as sns
+import seaborn as sns; sns.set_style("whitegrid")
 from scipy import stats
 from scipy.cluster.hierarchy import dendrogram, linkage
 import numpy as np
@@ -13,128 +13,52 @@ from matplotlib_venn import venn3
 
 
 class MY_PLOT:
-	def volcano_plot(self, df_arr, df_arr_c, x_ax=[], y_ax=[], colo=['red', 'blue'], lab=["over cut-off"], fn='volcano_plot'):
+	def volcano_plot(self, df, x_ax='', y_ax='', fn='volcano_plot'):
 		ex = EXC_READ()
 
-		def making_dots(arr1, arr2):
+		df_arr_dat = df.values.tolist()
+		df_arr_index = df.index.tolist()
+		df_arr_dat = [[x[0],-math.log10(x[1])] for x in df_arr_dat]
 
-			arr1_dat = arr1.values.tolist()
-			arr2_dat = arr2.values.tolist()
-
-			arr1_head = arr1.columns.tolist()
-			arr2_head = arr2.columns.tolist()
-
-			arr1_index = arr1.index.tolist()
-			arr2_index = arr2.index.tolist()
-
-			inter_index = list(set(arr1_index).intersection(arr2_index))
-
-			arr1_index_index = [i for i, item in enumerate(arr1_index) if item in inter_index]
-			arr2_index_index = [i for i, item in enumerate(arr2_index) if item in inter_index]
-
-			arr1_index_new = [arr1_index[x] for x in arr1_index_index]
-			arr2_index_new = [arr2_index[x] for x in arr2_index_index]
-
-			arr1_dat_new = [arr1_dat[x] for x in arr1_index_index]
-			arr2_dat_new = [arr2_dat[x] for x in arr2_index_index]
-
-			arr1_ext = ex.pandas_data(arr1_dat_new, arr1_head, arr1_index_new)
-			arr2_ext = ex.pandas_data(arr2_dat_new, arr2_head, arr2_index_new)
-			t_df = ex.pandas_merge([arr1_ext,arr2_ext],[arr1_head, arr2_head], [arr1_index_new, arr2_index_new])
-
-			return t_df
-
-		df_arr_dat = df_arr.values.tolist()
-		df_arr_head = df_arr.columns.tolist()
-		df_arr_index = df_arr.index.tolist()
-
-		logp = lambda x : [ -math.log10(a) for a in x]
-		df_arr_dat = [logp(x)for x in df_arr_dat]
-		df1 = ex.pandas_data(df_arr_dat, df_arr_head, df_arr_index)
-
-		df1_values = [df1[df1[x]>-math.log10(0.05)][x] for x in df_arr_head]
-		df1_ex = pd.DataFrame(df1_values)
-		df1_ex = df1_ex.T
-
-		df_arr_c_dat = df_arr_c.values.tolist()
-		df_arr_c_head = df_arr_c.columns.tolist()
-		df_arr_c_index = df_arr_c.index.tolist()
-
-		fold_head = ["fold_"+x for x in df_arr_c_head]
-
-		df2 = ex.pandas_data(df_arr_c_dat, fold_head, df_arr_c_index)
-
+		df1 = ex.pandas_data(df_arr_dat, ['x', 'y'], df_arr_index)
+		df1_values = df1[df1[y_ax]>-math.log10(0.05)]
 
 		###### fold > 0
-		df2_values = [df2[df2[x]>np.log2(1.5)][x] for x in fold_head]
+		df2_values = df1_values[df1_values[x_ax]>np.log2(1.5)]
 		df2_ex = pd.DataFrame(df2_values)
-		df2_ex = df2_ex.T
-
-		t_ext1 = making_dots(df1_ex, df2_ex)
-
-		df2 = ex.pandas_data(df_arr_c_dat, fold_head, df_arr_c_index)
 
 		###### fold < 0
-		df2_values = [df2[df2[x]<-np.log2(1.5)][x] for x in fold_head]
-		df2_ex = pd.DataFrame(df2_values)
-		df2_ex = df2_ex.T
+		df2_values = df1_values[df1_values[x_ax]<-np.log2(1.5)]
+		df3_ex = pd.DataFrame(df2_values)
 
-		t_ext2 = making_dots(df1_ex, df2_ex)
+		ax = df1.plot(kind='scatter', x='x', y='y', color='grey')
+		df2_ex.plot(kind='scatter', x='x', y='y', color='red', ax=ax)
+		df3_ex.plot(kind='scatter', x='x', y='y', color='blue', ax=ax)
 
-		t_df = ex.pandas_merge([df1,df2],[df_arr_head, fold_head], [df_arr_index, df_arr_c_index])
-
-		#t_ext.plot(kind='scatter', x="fold_"+x_ax[0], y=y_ax[0], color=colo[0], label=lab[0], ax=ax)
-
-		if len(lab)==1:
-			ax = t_df.plot(kind='scatter', x="fold_"+x_ax[0], y=y_ax[0], color='grey')
-
-			for a in range(len(x_ax)):
-				if a==0:
-					#ax = t_df.plot(kind='scatter', x="fold_"+x_ax[0], y=y_ax[0], color='grey')
-					t_ext1.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color=colo[a], ax=ax)
-					t_ext2.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color=colo[a+1], ax=ax)
-				else:
-					t_df.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color='grey', ax=ax)
-					t_ext1.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color=colo[a], ax=ax)
-					t_ext2.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color=colo[a+1], ax=ax)
-
-			ax.set_xlabel("Fold Change(log2)")
-			ax.set_ylabel("-log(P)")
-
-		else:
-			ax = t_df.plot(kind='scatter', x="fold_"+x_ax[0], y=y_ax[0], color='grey')
-
-			for a in range(len(x_ax)):
-				if a==0:
-					#ax = t_df.plot(kind='scatter', x="fold_"+x_ax[0], y=y_ax[0], color='grey')
-					t_ext1.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color=colo[a], label=lab[a], ax=ax)
-					t_ext2.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color=colo[a+1], label=lab[a+1], ax=ax)
-				else:
-					t_df.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color='grey', ax=ax)
-					t_ext1.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color=colo[a], label=lab[a], ax=ax)
-					t_ext2.plot(kind='scatter', x="fold_"+x_ax[a], y=y_ax[a], color=colo[a+1], label=lab[a+1], ax=ax)
-
-			ax.set_xlabel("Fold Change(log2)")
-			ax.set_ylabel("-log(P)")
+		ax.set_xlabel("Fold Change(log2)")
+		ax.set_ylabel("-log(P)")
 
 		fig = ax.get_figure()
 		fig.savefig(fn+".png")
 
-	def scatter_matr(self, df):
-		def corrfunc(x,y, **kws):
-			r, _ = stats.spearmanr(x, y)
-			ax = plt.gca()
-			ax.annotate("{:.2f}".format(r), xy=(.1, .9), xycoords=ax.transAxes)
+	def scatter_matr(self, df, type=1):
 
-		#titles = ['androgen_response', 'androgen_biosynthesis', 'cholesterol_homeostasis', 'cholesterol_biosynthesis','steroid_biosynthesis']
-		#df = pd.DataFrame(arr1, columns=titles)
+		if type==1:
+			def corrfunc(x,y, **kws):
+				r, _ = stats.spearmanr(x, y)
+				ax = plt.gca()
+				ax.annotate("{:.2f}".format(r), xy=(.1, .9), xycoords=ax.transAxes)
 
-		axes = sns.PairGrid(df.dropna(), palette="Blues_r")
-		axes.map_upper(sns.regplot,line_kws={'color': 'red'}, scatter_kws={'s':10})
-		axes.map_upper(corrfunc)
-		axes.map_diag(sns.distplot, kde="True")
-		axes.map_lower(sns.regplot,scatter_kws={'s':10},fit_reg=False)
-		axes.savefig("scatter_matrix.png",bbox_inches='tight')
+			#titles = ['androgen_response', 'androgen_biosynthesis', 'cholesterol_homeostasis', 'cholesterol_biosynthesis','steroid_biosynthesis']
+			#df = pd.DataFrame(arr1, columns=titles)
+
+			axes = sns.PairGrid(df.dropna(), palette="Blues_r")
+			axes.map_upper(sns.regplot,line_kws={'color': 'red'}, scatter_kws={'s':10})
+			axes.map_upper(corrfunc)
+			axes.map_diag(sns.distplot, kde="True")
+			axes.map_lower(sns.regplot,scatter_kws={'s':10},fit_reg=False)
+			axes.savefig("scatter_matrix.png",bbox_inches='tight')
+		#elif type==2:
 
 	def violin_plt(self, df):
 
@@ -162,8 +86,9 @@ class MY_PLOT:
 		cs011_1 = list(set(ind_list_c[1]).intersection(ind_list_c[2])) ####BC
 		cs101_1 = list(set(ind_list_c[0]).intersection(ind_list_c[2])) ###AC
 		cs111 = list(set(cs110_1).intersection(ind_list_c[2]))####ABC
-
 		cs110 = len([x for x in cs110_1 if x not in cs111])###AB-ABC
+		print [x for x in cs110_1 if x not in cs111]
+		print cs110
 		cs011 = len([x for x in cs011_1 if x not in cs111]) ####BC-ABC
 		cs101 = len([x for x in cs101_1 if x not in cs111]) ###AC-ABC
 		cs100 = len(only_agroup(ind_list_c[0],ind_list_c[1],ind_list_c[2])) ### A
@@ -287,7 +212,25 @@ class MY_PLOT:
 				arr = [str(x) for x in arr]
 			return arr
 
-		ax = sns.regplot(x=x_dat,y=y_dat,line_kws={'color':'red', 'lw':1},scatter_kws={'s':20}, data=data)
+		def corrfunc(x,y, **kws):
+			r, pv = stats.spearmanr(x, y)
+			print pv
+			ax = plt.gca()
+			ax.annotate("{:.2f}".format(r), xy=(.1, .9), xycoords=ax.transAxes)
+
+		test_data = data[[x_dat,y_dat]].dropna()
+
+
+		plt.axhline(0, color='black', linewidth=1)
+		plt.axvline(0, color='black', linewidth=1)
+
+		ax = sns.regplot(x=x_dat,y=y_dat,line_kws={'color':'red', 'lw':1},scatter_kws={'s':20}, data=test_data)
+
+		#corrfunc(test_data[x_dat], test_data[y_dat])
+		r, pv = stats.spearmanr(test_data[x_dat], test_data[y_dat], nan_policy='omit')
+
+		print 'corr : '+str(r)
+		print 'pval : '+str(pv)
 
 		if annotate==True:
 			f = open(annotation_file,"r")
@@ -320,35 +263,73 @@ class MY_PLOT:
 		fn = ax.get_figure()
 		fn.savefig('%s.png'%(filename))
 
-	def hierarchical_dendro_and_heatmap(self, df, filename, method='complete', metric='euclidean', cbar=False):
+	def hierarchical_dendro_and_heatmap(self, df, filename, method='complete', metric='euclidean', cbar=False, dend_line_width=1, heatmap_font_size = 0.6, square=False, font=False, heatmap_line_width=0.05):
 
+		sns.reset_orig()
+		plt.rcParams['lines.linewidth'] = dend_line_width
 		ex = EXC_READ()
+
 		Z = linkage(df.values.tolist(), method=method, metric=metric)
-
-		#plt.title('Hierarchical Clustering Dendrogram')
-		#plt.xlabel('sample index')
-		#plt.ylabel('distance')
-
 		plt.figure(figsize=(25, 10))
 		A = dendrogram( Z, leaf_rotation=90.,  # rotates the x axis labels
 						leaf_font_size=8.,  # font size for the x axis labels
-
-						labels=df.index.tolist()
+						labels=df.index.tolist(),
 		)
 
 		plt.savefig(filename+'_dendrogram.png')
+
 		plt.clf()
 
-		plt.figure(figsize=(4,10))
+		plt.figure(figsize=(10,20))
 		clustered_sort = A['ivl']
+		print clustered_sort
 		clustered_dat = []
 		[clustered_dat.append(df.loc[x].tolist()) for x in clustered_sort]
 		new_df = ex.pandas_data(clustered_dat, df.columns.tolist(), clustered_sort)
 
-		sns.set(font_scale=0.6)
-		ax = sns.heatmap(new_df, cbar=cbar)
+		if font==True:
+			sns.set(font_scale=heatmap_font_size, font='Arial')
+		ax = sns.heatmap(new_df, cbar=cbar, linewidth=heatmap_line_width, square=square)
 		fn = ax.get_figure()
 		#print new_df
 		fn.savefig(filename+'_heatmap.png')
 
+	def categ_scatter_plot(self, df, x_ax='', y_ax='', fn='categ_scatter_plot'):
 
+		ex = EXC_READ()
+
+		df1_values = df[df[x_ax+"_fdr"]<0.05]
+		df2_values = df[df[y_ax+"_fdr"]<0.05]
+		#df3_values = df[(abs(df[x_ax])>np.log2(1.5)) & (abs(df[y_ax])>np.log2(1.5)) & df[x_ax+"_fdr"] < 0.05 & df[y_ax+"_fdr"] < 0.05]
+		df3_values = df1_values[df1_values[y_ax+"_fdr"] < 0.05]
+
+		df1_ex = pd.DataFrame(df1_values)
+		df2_ex = pd.DataFrame(df2_values)
+		df3_ex = pd.DataFrame(df3_values)
+
+
+		plt.axhline(0, color='black', linewidth=1)
+		plt.axvline(0, color='black', linewidth=1)
+
+		ax = df.plot(kind='scatter', x=x_ax, y=y_ax, color='grey')
+		if df1_ex.empty==False:
+			df1_ex.plot(kind='scatter', x=x_ax, y=y_ax, color='green', ax=ax)
+		if df2_ex.empty==False:
+			df2_ex.plot(kind='scatter', x=x_ax, y=y_ax, color='blue', ax=ax)
+		if df3_ex.empty==False:
+			df3_ex.plot(kind='scatter', x=x_ax, y=y_ax, color='cyan', ax=ax)
+
+		sns.regplot(x=x_ax,y=y_ax,data=df, line_kws={'color': 'red'},scatter_kws={"s": 0}, color='grey')#####total data reg line
+		r, pv = stats.spearmanr(df[x_ax], df[y_ax], nan_policy='omit')
+
+		print 'corr : '+str(r)
+		print 'pval : '+str(pv)
+		#sns.regplot(x=x_ax,y=y_ax,data=df3_ex, line_kws={'color': 'red'}, color='cyan')#####significant data reg line
+
+
+
+		ax.set_xlabel("Fold Change(log2)")
+		ax.set_ylabel("Fold Change(log2)")
+
+		fig = ax.get_figure()
+		fig.savefig(fn+".png")
